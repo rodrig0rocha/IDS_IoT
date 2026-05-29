@@ -22,12 +22,6 @@ def ensemble_models(task_type, random_state=80):
         ),
 
         # Boosting
-        "CatBoost": CatBoostClassifier(
-            random_state=random_state,
-            verbose=False,
-            allow_writing_files=False
-        ),
-
         "LightGBM": LGBMClassifier(
             random_state=random_state,
             verbosity=-1

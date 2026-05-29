@@ -79,3 +79,16 @@ class DatasetLoader:
         temp["Max"]   = numeric_cols.max()
 
         return temp
+    
+
+    def remove_duplicate(self, df):
+
+        initial_rows = df.shape[0]
+        df = df.drop_duplicates()
+        final_rows = df.shape[0]
+
+        print(f"Duplicated rows: {initial_rows - final_rows}")
+        print(f"Dataframe shape: {df.shape}")
+
+
+        return df  

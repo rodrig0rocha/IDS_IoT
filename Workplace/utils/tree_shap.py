@@ -5,28 +5,34 @@ shap.initjs()
 class SHAPTreeExplainer:
     def __init__(
         self, 
-        task_type="binary", 
-        sample_size=1000, 
-        random_state=80
+        task_type="binary",
+        n_samples=None,
+        random_state=None
     ):
         self.task_type = task_type
-        self.sample_size = sample_size
+        self.n_samples = n_samples
         self.random_state = random_state
+
+
+    def subsample(self, X):
+        if self.n_samples is None:
+            return X
+        
+        return X.sample(self.n_samples, random_state=self.random_state)
 
 
     def explain(self, model, X):
 
+        X = self.subsample(X)
         explainer = shap.TreeExplainer(model)
+        shap_values = explainer(X)
 
-        X_sample = X.sample(self.sample_size, random_state=self.random_state)
-        shap_values = explainer(X_sample)
-
-        return shap_values, X_sample
+        return shap_values, X
 
 
     def plot_beeswarm(self, model, X, class_index=0):
 
-        shap_values, X_sample = self.explain(model, X)
+        shap_values, X = self.explain(model, X)
 
         if self.task_type == "binary":
             if len(shap_values.shape) == 3:
@@ -36,9 +42,5 @@ class SHAPTreeExplainer:
 
         elif self.task_type == "multiclass":
             shap.plots.beeswarm(shap_values[:, :, class_index], max_display=10)
-
-
-            
-
 
 

@@ -84,26 +84,27 @@ class ModelEvaluator:
         results = []
 
         for model_name, model in models.items():
-            print(f"\nRunning model: {model_name}")
-            start_time = time.time()                
+            print(f"\nRunning model: {model_name}")               
 
-            X_train_final, y_train_smote = SMOTE(
+            X_train_final, y_train_final = SMOTE(
                 random_state=self.random_state
             ).fit_resample(X_train_proc, y_train)
 
+            start_time = time.time() 
+
             clf = clone(model)
-            clf.fit(X_train_final, y_train_smote)
+            clf.fit(X_train_final, y_train_final)
 
             self.trained_models[model_name] = {
                 "model": clf,
                 "X_train": X_train_final,
-                "y_train": y_train_smote,
+                "y_train": y_train_final,
                 "X_test": X_test_proc,
                 "y_test": y_test
             }
 
             train_metrics = self.metrics(
-                y_train_smote, clf.predict(X_train_final)
+                y_train_final, clf.predict(X_train_final)
             )
             test_metrics = self.metrics(
                 y_test, clf.predict(X_test_proc)

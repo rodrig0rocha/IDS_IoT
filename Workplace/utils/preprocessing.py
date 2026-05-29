@@ -21,15 +21,8 @@ class Preprocessor:
         self.categorical_imputation_strategy = categorical_imputation_strategy
 
 
-    def clean_dataframe(self, df):
 
-        initial_rows = df.shape[0]
-        df = df.drop_duplicates()
-        final_rows = df.shape[0]
-
-        if final_rows != initial_rows:
-            print(f"Duplicated rows: {initial_rows - final_rows}")
-            print(f"Dataframe shape: {df.shape}")
+    def prepare_features(self, df):
 
         target_to_drop = [
             col for col in self.all_target_columns
@@ -42,7 +35,6 @@ class Preprocessor:
         print(f'{self.columns_to_drop} columns eliminated')
 
 
-        # Não pode ser cat_col e se for object e dentro das colunas selecionadas fax X, caso contrário faz este código
         cat_cols = df.select_dtypes(include=["object", "category"]).columns
         if self.categorical_missing_token is not None:
             df[cat_cols] = df[cat_cols].replace(
@@ -52,7 +44,7 @@ class Preprocessor:
         else:
             df[cat_cols] = df[cat_cols].fillna("Missing")    
             
-
+            
         return df
 
 
@@ -129,6 +121,7 @@ class Preprocessor:
         if not hasattr(self, "printed"):
             print(f"Total features after preprocessing: {X_final.shape[1]}")
             self.printed = True
+
 
         return X_final
 
