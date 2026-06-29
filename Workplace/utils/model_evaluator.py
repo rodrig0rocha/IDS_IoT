@@ -16,11 +16,15 @@ class ModelEvaluator:
         self,
         test_size=0.2,
         random_state=80,
-        task_type="binary"
+        task_type="binary",
+        split_strategy="stratified",
+        time_column=None
     ):
         self.test_size = test_size
         self.random_state = random_state
         self.task_type = task_type
+        self.split_strategy = split_strategy
+        self.time_column = time_column
 
         self.results_df = None
         self.label_encoder = None
@@ -36,6 +40,53 @@ class ModelEvaluator:
             "recall": recall_score(y_true, y_pred, average=avg, zero_division=0),
             "f1": f1_score(y_true, y_pred, average=avg, zero_division=0)
         }
+    
+
+    def split_dataset(self, X, y):
+
+        if self.split_strategy == "temporal":
+
+            temp_df = X.copy()
+            temp_df["target"] = y
+
+            temp_df = temp_df.sort_values(
+                self.time_column
+            ).reset_index(drop=True)
+
+            split_idx = int(len(temp_df) * (1 - self.test_size))
+
+            train_df = temp_df.iloc[:split_idx].copy()
+            test_df = temp_df.iloc[split_idx:].copy()
+
+            y_train = train_df["target"].values
+            y_test = test_df["target"].values
+
+            X_train = train_df.drop(
+                columns=["target", self.time_column],
+                errors="ignore"
+            )
+
+            X_test = test_df.drop(
+                columns=["target", self.time_column],
+                errors="ignore"
+            )
+
+            print(f"Train time range: {train_df[self.time_column].min()} - {train_df[self.time_column].max()}")
+            print(f"Test time range: {test_df[self.time_column].min()} - {test_df[self.time_column].max()}")
+
+            return X_train, X_test, y_train, y_test
+
+
+        elif self.split_strategy == "stratified":
+
+            return train_test_split(
+                X,
+                y,
+                test_size=self.test_size,
+                random_state=self.random_state,
+                stratify=y 
+            )
+
 
 
     def run(self, models, preprocessor, X, y, feature_selector=None):
@@ -53,19 +104,14 @@ class ModelEvaluator:
             }
             print(self.class_map)
 
-        # Split Dataset 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X,
-            y,
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify=y if self.task_type == "binary" else None
-        )
+
+        X_train, X_test, y_train, y_test = self.split_dataset(X, y)
 
         print(f"X_train shape: {X_train.shape}")
         print(f"y_train shape: {y_train.shape}")
         print(f"X_test shape: {X_test.shape}")
         print(f"y_test shape: {y_test.shape}")
+
 
         # Preprocessing (Missing imputation and Encoding)
         preprocessor.fit(X_train)

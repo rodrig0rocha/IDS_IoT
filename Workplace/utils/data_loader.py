@@ -1,4 +1,5 @@
 from pathlib import Path
+import calendar
 import pandas as pd
 
 pd.set_option('display.max_columns', None)
@@ -6,7 +7,8 @@ pd.set_option('display.max_columns', None)
 class DatasetLoader:
 
     dataset_root = Path("../Datasets")
-
+    
+    month_number = {name: f"{i:02d}" for i, name in enumerate(calendar.month_name) if name}
 
     def __init__(self, dataset_name):
         self.dataset_name = dataset_name
@@ -27,8 +29,8 @@ class DatasetLoader:
 
     def search_files(self):
 
-        csv_files = sorted(self.dataset_path.glob("*.csv"))
-        xlsx_files = sorted(self.dataset_path.glob("*.xlsx"))
+        csv_files = sorted(self.dataset_path.rglob("*.csv"))
+        xlsx_files = sorted(self.dataset_path.rglob("*.xlsx"))
 
         if csv_files:
             return csv_files, "csv"
@@ -39,26 +41,32 @@ class DatasetLoader:
         return [], None
 
 
-    def load(self):
+    def load(self, add_month=True):
 
         dfs = []
 
         for f in self.files:
 
-            if self.file_type== "csv":
+            if self.file_type == "csv":
                 df = pd.read_csv(f, low_memory=False)
 
             elif self.file_type == "xlsx":
                 df = pd.read_excel(f)
+
+            if add_month:
+                month = self.month_number.get(f.parent.name)
+                if month is not None:
+                    df["Month"] = month    
 
             dfs.append(df)        
 
         return pd.concat(dfs, ignore_index=True)
 
 
-    def info(self):
-    
-        df = self.load()
+    def info(self, df=None):
+
+        if df is None:
+            df = self.load()
 
         temp = pd.DataFrame(index=df.columns)
 
@@ -81,10 +89,17 @@ class DatasetLoader:
         return temp
     
 
-    def remove_duplicate(self, df):
+    def remove_duplicates(self, df, exclude_column=None):
 
         initial_rows = df.shape[0]
-        df = df.drop_duplicates()
+
+        df = (df.drop_duplicates(
+            subset=[col for col in df.columns if col != exclude_column],
+            keep="first"
+        )
+        .reset_index(drop=True)
+        )
+
         final_rows = df.shape[0]
 
         print(f"Duplicated rows: {initial_rows - final_rows}")
