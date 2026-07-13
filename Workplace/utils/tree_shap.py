@@ -43,4 +43,3 @@ class SHAPTreeExplainer:
         elif self.task_type == "multiclass":
             shap.plots.beeswarm(shap_values[:, :, class_index], max_display=10)
 
-

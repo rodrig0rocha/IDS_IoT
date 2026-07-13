@@ -8,7 +8,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import LabelEncoder
-from imblearn.over_sampling import SMOTE
+from sklearn.utils.class_weight import compute_sample_weight
+
 
 
 class ModelEvaluator:
@@ -33,7 +34,7 @@ class ModelEvaluator:
 
 
     def metrics(self, y_true, y_pred):
-        avg = "binary" if self.task_type == "binary" else "weighted"
+        avg = "binary" if self.task_type == "binary" else "macro"
         return {
             "accuracy": accuracy_score(y_true, y_pred),
             "precision": precision_score(y_true, y_pred, average=avg, zero_division=0),
@@ -129,37 +130,56 @@ class ModelEvaluator:
 
         results = []
 
+        sample_weight = compute_sample_weight(
+            class_weight="balanced",
+            y=y_train
+        )
+
         for model_name, model in models.items():
             print(f"\nRunning model: {model_name}")               
 
-            X_train_final, y_train_final = SMOTE(
-                random_state=self.random_state
-            ).fit_resample(X_train_proc, y_train)
-
-            start_time = time.time() 
-
             clf = clone(model)
-            clf.fit(X_train_final, y_train_final)
+
+            train_start = time.perf_counter()
+
+            clf.fit(
+                X_train_proc,
+                y_train,
+                sample_weight=sample_weight
+            )
+
+            training_time = time.perf_counter() - train_start
+
+            y_train_pred = clf.predict(X_train_proc)
+
+            inference_start = time.perf_counter()
+
+            y_test_pred = clf.predict(X_test_proc)
+
+            inference_time = time.perf_counter() - inference_start
+            inference_time_per_sample_ms = (
+            inference_time / len(X_test_proc)
+            ) * 1000
 
             self.trained_models[model_name] = {
                 "model": clf,
-                "X_train": X_train_final,
-                "y_train": y_train_final,
+                "X_train": X_train_proc,
+                "y_train": y_train,
                 "X_test": X_test_proc,
                 "y_test": y_test
             }
 
             train_metrics = self.metrics(
-                y_train_final, clf.predict(X_train_final)
+                y_train,
+                y_train_pred
             )
             test_metrics = self.metrics(
-                y_test, clf.predict(X_test_proc)
+                y_test, y_test_pred
             )
 
-            elapsed = time.time() - start_time
+
 
             # Confusion matrix
-            y_test_pred = clf.predict(X_test_proc)
             cm = confusion_matrix(y_test, y_test_pred)
             disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=clf.classes_)
             disp.plot(cmap='Blues', colorbar=False)
@@ -177,7 +197,8 @@ class ModelEvaluator:
                 "test_recall": test_metrics["recall"],
                 "train_f1": train_metrics["f1"],
                 "test_f1": test_metrics["f1"],
-                "time": elapsed
+                "training_time_s": training_time,
+                "inference_time_per_sample_ms": inference_time_per_sample_ms
             })
 
         self.results_df = (
