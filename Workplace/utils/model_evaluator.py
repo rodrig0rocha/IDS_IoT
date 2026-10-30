@@ -94,16 +94,35 @@ class ModelEvaluator:
         
         # Label Encoder
         if y.dtype == "object":
-            self.label_encoder = LabelEncoder()
-            y = self.label_encoder.fit_transform(y)
-            self.class_map = {
-                cls: int(code)
-                for cls, code in zip(
-                    self.label_encoder.classes_,
-                    self.label_encoder.transform(self.label_encoder.classes_)
-                )
-            }
-            print(self.class_map)
+
+            if set(y.unique()) == {"Normal", "Attack"}:
+                # Binary classification
+                self.class_map = {
+                    "Normal": 0,
+                    "Attack": 1
+                }
+
+                y = y.map(self.class_map)
+                self.label_encoder = None
+                
+                print(self.class_map)
+
+
+            else:
+                # Multiclass classification    
+                self.label_encoder = LabelEncoder()
+                y = self.label_encoder.fit_transform(y)
+                            
+                self.class_map = {
+                    cls: int(code)
+                    for cls, code in zip(
+                        self.label_encoder.classes_,
+                        self.label_encoder.transform(self.label_encoder.classes_
+                        )
+                    )
+                }
+                            
+                print(self.class_map)
 
 
         X_train, X_test, y_train, y_test = self.split_dataset(X, y)
